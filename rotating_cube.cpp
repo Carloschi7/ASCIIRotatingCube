@@ -209,7 +209,7 @@ int main()
                 {
                     if(Condition(x,y,z))
                     {
-                        Vector3D transformed = Multiply({x,y,z}, fAngle, fAngle / 2.0f, 0.0f);
+                        Vector3D transformed = Multiply({x,y,z}, fAngle, fAngle / 2.0f, fAngle / 8.0f);
                         //Rotated space -> screen space
 			uint32_t x = approx(width/2 + (transformed.x * width/2) / transformed.z);
                         uint32_t y = approx(height/2 - (transformed.y * height/2) / transformed.z);
@@ -228,10 +228,10 @@ int main()
             std::cout << std::endl;
         }
 
-        //Clearing
+        //Sleeping and clearing
+	std::this_thread::sleep_for(std::chrono::milliseconds(20));
         printf("\033[H\033[J");
-        printf("\033[%d;%dH", 1, 1);
-        std::this_thread::sleep_for(std::chrono::milliseconds(30));
+        printf("\033[%d;%dH", 0, 0);
     }
 
 	return 0;

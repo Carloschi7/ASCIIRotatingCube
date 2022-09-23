@@ -5,7 +5,7 @@
 #include <chrono>
 #include <vector>
 
-//Predefinitions
+//Utility classes for point rotation
 
 template <uint32_t ROWS, uint32_t COLS>
 class SimpleMatrix
@@ -74,6 +74,7 @@ private:
 };
 
 //Basic rotations
+//Default rotation matrices in all coordiantes
 
 SimpleMatrix<3,3> Rx(float fAngle)
 {
@@ -106,6 +107,7 @@ struct Vector3D
 {
     float x = 0, y = 0, z = 0;
 
+    //Basic multiplication with a matrix
     Vector3D operator*(const SimpleMatrix<3,3>& mat) const
     {
         Vector3D output;
@@ -132,6 +134,7 @@ float fAttenuator = 0.1f;
 float fDistanceFromCamera = 2.0f;
 float fIncrement = 0.05f;
 
+//Empiric space -> Rotated space
 Vector3D Multiply(const Vector3D& cube_pos, float fDegX, float fDegY, float fDegZ)
 {
     auto ToRadians = [](float fAngle){return fAngle * (M_PI / 180.0f);};
@@ -162,6 +165,8 @@ bool Condition(float x, float y, float z)
 
 int main()
 {
+    //Used to draw points	
+	/*
     std::vector<Vector3D> vecs = {{0.5f, 0.5f, 0.5f},
                                   {-0.5f, 0.5f, 0.5f},
                                   {0.5f, -0.5f, 0.5f},
@@ -170,7 +175,8 @@ int main()
                                   {-0.5f, 0.5f, -0.5f},
                                   {0.5f, -0.5f, -0.5f},
                                   {-0.5f, -0.5f, -0.5f}};
-
+	*/
+    //A more mathematical approximation
     auto approx = [](float value)
             {
                 float cut = value - uint32_t(value);
@@ -186,6 +192,7 @@ int main()
         memset(screen_buf, ' ', width * height);
 
         fAngle += 0.5f;
+	//This is used only to draw points only
         /*for(const auto& vec : vecs)
         {
             Vector3D transformed = Multiply(vec, fAngleY, 0.0f, 0.0f);
@@ -203,7 +210,8 @@ int main()
                     if(Condition(x,y,z))
                     {
                         Vector3D transformed = Multiply({x,y,z}, fAngle, fAngle / 2.0f, 0.0f);
-                        uint32_t x = approx(width/2 + (transformed.x * width/2) / transformed.z);
+                        //Rotated space -> screen space
+			uint32_t x = approx(width/2 + (transformed.x * width/2) / transformed.z);
                         uint32_t y = approx(height/2 - (transformed.y * height/2) / transformed.z);
                         screen_buf[y * width + x] = '#';
                     }

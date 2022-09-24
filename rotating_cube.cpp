@@ -6,7 +6,6 @@
 #include <vector>
 
 //Utility classes for point rotation
-
 template <uint32_t ROWS, uint32_t COLS>
 class SimpleMatrix
 {
@@ -124,15 +123,12 @@ struct Vector3D
 
 };
 
-
-
 //Actual program
-
 static const uint32_t width = 130, height = 50;
 char screen_buf[width * height];
 float fAttenuator = 0.1f;
 float fDistanceFromCamera = 2.0f;
-float fIncrement = 0.05f;
+float fIncrement = 0.03f;
 
 //Empiric space -> Rotated space
 Vector3D Multiply(const Vector3D& cube_pos, float fDegX, float fDegY, float fDegZ)
@@ -165,41 +161,21 @@ bool Condition(float x, float y, float z)
 
 int main()
 {
-    //Used to draw points	
-	/*
-    std::vector<Vector3D> vecs = {{0.5f, 0.5f, 0.5f},
-                                  {-0.5f, 0.5f, 0.5f},
-                                  {0.5f, -0.5f, 0.5f},
-                                  {-0.5f, -0.5f, 0.5f},
-                                  {0.5f, 0.5f, -0.5f},
-                                  {-0.5f, 0.5f, -0.5f},
-                                  {0.5f, -0.5f, -0.5f},
-                                  {-0.5f, -0.5f, -0.5f}};
-	*/
     //A more mathematical approximation
     auto approx = [](float value)
-            {
-                float cut = value - uint32_t(value);
-                if(cut > 0.5f)
-                    return uint32_t(value) + 1;
-                else
-                    return uint32_t(value);
-            };
+        {
+            float cut = value - uint32_t(value);
+            if(cut > 0.5f)
+                return uint32_t(value) + 1;
+            else
+                return uint32_t(value);
+        };
 
     float fAngle = 0.0f;
     for(;;)
     {
         memset(screen_buf, ' ', width * height);
-
-        fAngle += 0.5f;
-	//This is used only to draw points only
-        /*for(const auto& vec : vecs)
-        {
-            Vector3D transformed = Multiply(vec, fAngleY, 0.0f, 0.0f);
-            uint32_t x = approx(width/2 + (transformed.x * width/2) / transformed.z);
-            uint32_t y = approx(height/2 - (transformed.y * height/2) / transformed.z);
-            screen_buf[y * width + x] = '#';
-        }*/
+	fAngle += 0.5f;
 
         for(float x = -0.5f; x < 0.5f; x += fIncrement)
         {
@@ -211,7 +187,7 @@ int main()
                     {
                         Vector3D transformed = Multiply({x,y,z}, fAngle, fAngle / 2.0f, fAngle / 8.0f);
                         //Rotated space -> screen space
-			uint32_t x = approx(width/2 + (transformed.x * width/2) / transformed.z);
+                        uint32_t x = approx(width/2 + (transformed.x * width/2) / transformed.z);
                         uint32_t y = approx(height/2 - (transformed.y * height/2) / transformed.z);
                         screen_buf[y * width + x] = '#';
                     }

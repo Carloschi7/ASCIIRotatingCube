@@ -3,7 +3,6 @@
 #include <cmath>
 #include <thread>
 #include <chrono>
-#include <vector>
 
 //Utility classes for point rotation
 template <uint32_t ROWS, uint32_t COLS>
@@ -67,7 +66,6 @@ public:
 
         return {data};
     }
-
 private:
     float m_Data[ROWS][COLS]{0};
 };
@@ -121,6 +119,11 @@ struct Vector3D
         std::cout << x << ", " << y << ", " << z << std::endl;
     }
 
+    Vector3D operator-() const
+    {
+        return {-x, -y, -z};
+    }
+
 };
 
 //Actual program
@@ -128,22 +131,23 @@ static const uint32_t width = 130, height = 50;
 char screen_buf[width * height];
 float fAttenuator = 0.1f;
 float fDistanceFromCamera = 2.0f;
-float fIncrement = 0.03f;
+float fIncrement = 0.02f;
+//Half a cube's diagonal
+float fClosestDepth = std::sqrt(0.75f);
 
 //Empiric space -> Rotated space
-Vector3D Multiply(const Vector3D& cube_pos, float fDegX, float fDegY, float fDegZ)
+Vector3D Multiply(const Vector3D& cube_pos, const Vector3D& rotation_angle)
 {
     auto ToRadians = [](float fAngle){return fAngle * (M_PI / 180.0f);};
-    float fRadX = ToRadians(fDegX);
-    float fRadY = ToRadians(fDegY);
-    float fRadZ = ToRadians(fDegZ);
+    float fRadX = ToRadians(rotation_angle.x);
+    float fRadY = ToRadians(rotation_angle.y);
+    float fRadZ = ToRadians(rotation_angle.z);
     Vector3D output = cube_pos * (Rx(fRadX) * Ry(fRadY) * Rz(fRadZ));
-    output.z += fDistanceFromCamera;
     return output;
 }
 
 //Checking only for cube edges
-bool Condition(float x, float y, float z)
+bool Condition1(float x, float y, float z)
 {
     return (x == -0.5f && y == -0.5f) ||
            (x == -0.5f && z == -0.5f) ||
@@ -157,6 +161,49 @@ bool Condition(float x, float y, float z)
             (y + fIncrement >= 0.5f && x == -0.5f) ||
             (z + fIncrement >= 0.5f && x == -0.5f) ||
             (z + fIncrement >= 0.5f && y == -0.5f);
+}
+
+uint32_t Condition(float x, float y, float z)
+{
+    if(x == -0.5f)
+        return 1;
+    if(x + fIncrement >= 0.5f)
+        return 2;
+    if(y == -0.5f)
+        return 3;
+    if(y + fIncrement >= 0.5f)
+        return 4;
+    if(z == -0.5f)
+        return 5;
+    if(z + fIncrement >= 0.5f)
+        return 6;
+
+    return 0;
+}
+
+int32_t GetSymPriority(char c)
+{
+	switch(c)
+	{
+	case '#':
+		return 4;
+	case '+':
+		return 3;
+	case '-':
+		return 2;
+	case '.':
+		return 1;
+	case ' ':
+		return 0;
+	default:
+		return -1;
+	}
+}
+
+void SetBuf(char& buf_tile, char input)
+{
+	if(GetSymPriority(input) > GetSymPriority(buf_tile))
+		buf_tile = input;
 }
 
 int main()
@@ -175,7 +222,8 @@ int main()
     for(;;)
     {
         memset(screen_buf, ' ', width * height);
-	fAngle += 0.5f;
+	    fAngle += 0.5f;
+        Vector3D rotation_angle = {fAngle, fAngle / 2.0f, fAngle / 8.0f};
 
         for(float x = -0.5f; x < 0.5f; x += fIncrement)
         {
@@ -183,13 +231,54 @@ int main()
             {
                 for(float z = -0.5f; z < 0.5f; z += fIncrement)
                 {
-                    if(Condition(x,y,z))
+                    uint32_t res = Condition(x,y,z);
+                    Vector3D rotated_norm;
+                    switch(res)
                     {
-                        Vector3D transformed = Multiply({x,y,z}, fAngle, fAngle / 2.0f, fAngle / 8.0f);
+                        case 1:
+                            rotated_norm = Multiply({-1.0f, 0.0f, 0.0f}, rotation_angle);
+                            break;
+                        case 2:
+                            rotated_norm = Multiply({1.0f, 0.0f, 0.0f}, rotation_angle);
+                            break;
+                        case 3:
+                            rotated_norm = Multiply({0.0f, -1.0f, 0.0f}, rotation_angle);
+                            break;
+                        case 4:
+                            rotated_norm = Multiply({0.0f, 1.0f, 0.0f}, rotation_angle);
+                            break;
+                        case 5:
+                            rotated_norm = Multiply({0.0f, 0.0f, -1.0f}, rotation_angle);
+                            break;
+                        case 6:
+                            rotated_norm = Multiply({0.0f, 0.0f, 1.0f}, rotation_angle);
+                            break;
+                        default:
+                            break;
+                    }
+
+                    auto dot_product = [](const Vector3D& a, const Vector3D& b)
+                            {return a.x*b.x + a.y*b.y + a.z*b.z;};
+
+                    if(res)
+                    {
+                        Vector3D transformed = Multiply({x,y,z}, rotation_angle);
+                        transformed.z += fDistanceFromCamera;
                         //Rotated space -> screen space
-                        uint32_t x = approx(width/2 + (transformed.x * width/2) / transformed.z);
-                        uint32_t y = approx(height/2 - (transformed.y * height/2) / transformed.z);
-                        screen_buf[y * width + x] = '#';
+                        uint32_t lx = approx(width/2 + (transformed.x * width/2) / transformed.z);
+                        uint32_t ly = approx(height/2 - (transformed.y * height/2) / transformed.z);
+
+                        Vector3D view_direction{0.0f, 0.0f, 1.0f};
+                        float fBrightness = (dot_product(-view_direction, rotated_norm) + 1.0f) / 2.0f;
+
+                        if(fBrightness < 0.7f)
+                            SetBuf(screen_buf[ly * width + lx], '.');
+                        else if(fBrightness >= 0.7f && fBrightness < 0.75f)
+                            SetBuf(screen_buf[ly * width + lx], '-');
+                        else if(fBrightness >= 0.75f && fBrightness < 0.9f)
+                            SetBuf(screen_buf[ly * width + lx], '+');
+                        else if(fBrightness >= 0.9f)
+                            SetBuf(screen_buf[ly * width + lx], '#');
                     }
                 }
             }
@@ -205,7 +294,7 @@ int main()
         }
 
         //Sleeping and clearing
-	std::this_thread::sleep_for(std::chrono::milliseconds(20));
+	    std::this_thread::sleep_for(std::chrono::milliseconds(15));
         printf("\033[H\033[J");
         printf("\033[%d;%dH", 0, 0);
     }
